@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+
+# Environment variables
+.env
+
+# Log files
+*.log
+
+# Credentials and Tokens
+credentials.json
+credentials_gmail.json
+token.json
+token_gmail.json
+
+# VSCode
+.vscode/
+
+# Local files specific to my implementation
+0xCJT/
+
+# Package files
+*.mcpb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

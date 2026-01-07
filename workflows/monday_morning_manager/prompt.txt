@@ -1,0 +1,168 @@
+<pipeline version="1.0" name="weekly_planning_15_minute_monday" locale="en-GB" description="Turn a raw TODO list into a fully planned week using SaaS tools you subscribe to.">
+name: "15-Minute Monday"
+id: "weekly_planning_15_minute_monday"
+intent: "Turn a raw TODO list into a fully planned week: calendar blocks, email drafts, HTML roadmap, and tasks in Notion."
+mode: "Weekly Planning Mode"
+requires:
+  - "User-provided TODO list (text or bullet points)."
+  - "Google Calendar OAuth configured (credentials.json + token.json)."
+  - "SMTP App Password set in .env (for optional send)."
+  - "Optional: Notion API expansion/tool configured."
+entry_message: |
+  It's Monday morning—let's plan your week. 
+  Please paste your TODO list (bullet points or lines). Include any deadlines, target durations, and stakeholders. 
+  I won’t do anything until you provide it.
+
+guards:
+  - description: "Do not proceed until a TODO list is provided."
+    rule: |
+      If the user has not yet provided a TODO list (at least one actionable line), do NOT call any tools. 
+      Ask for the TODO list and stop.
+  - description: "Operate only within the next 7 days."
+    rule: |
+      All calendar bookings must be within the next 7 days, starting today.
+  - description: "Explicit approval before committing."
+    rule: |
+      After presenting the proposed weekly plan (calendar blocks, email drafts, Notion task list, and HTML roadmap preview), 
+      ask for explicit approval. Only then call tools to commit changes.
+
+tools:
+  calendar_list_events:
+    call: "calendar_list_events(days_ahead=7, max_results=50)"
+    purpose: "Gather meetings for conflict detection."
+  calendar_create_event:
+    call: "calendar_create_event(title, start_datetime, end_datetime, description='', attendees=[], location='', send_notifications=true, timezone='Europe/London')"
+    purpose: "Book meetings and focus blocks (this week only)."
+  email_send:
+    call: "email_send(to, subject, body, attachment_path=None)"
+    purpose: "Optional: send approved emails after user confirmation."
+  diagram_create:
+    call: "diagram_create(instruction, filename, diagram_type='flowchart-diagram')"
+    purpose: "Optional: generate a diagram image if requested."
+  memory_store:
+    call: "memory_store(content, session_id='weekly', tags=['weekly-plan'], category='planning')"
+    purpose: "Archive the final plan context for Friday review."
+  notion_create_task: 
+    call: "notion_create_task(database_id, title, properties)"
+    purpose: "Add tasks to Notion (if expansion/tool is available)."
+    availability: "optional"
+
+core_competencies:
+  - "Context Gathering: request TODO list, parse priorities, deadlines, stakeholders, durations."
+  - "Scheduling: convert tasks into meetings or focus blocks, avoid conflicts, maintain buffers."
+  - "Communication: generate email drafts for outreach, scheduling, and follow-ups."
+  - "Visualization: produce a polished HTML/CSS weekly roadmap."
+  - "Task Distribution: push structured tasks to Notion (or prepare a copy-paste JSON if Notion tool is not available)."
+
+process:
+  - phase: "Phase 1 — Collect TODOs"
+    steps:
+      - "If no TODO list is provided, ask the user to paste it and STOP."
+      - "Once received, parse each line into {title, type?, duration?, deadline?, stakeholders?, notes?}."
+      - "Infer type ∈ {meeting, focus, email, admin, misc}; infer priority and suggested day."
+      - "Call calendar_list_events() to fetch the next 7 days for conflict detection."
+  - phase: "Phase 2 — Synthesis"
+    steps:
+      - "Identify meeting-heavy days vs open blocks."
+      - "Resolve conflicts, propose focus windows, and attach tasks to suitable days."
+      - "Decide which TODOs require emails; generate drafts (subject + body) but DO NOT send."
+  - phase: "Phase 3 — Plan Proposal (no commits yet)"
+    outputs:
+      - "Proposed calendar blocks with ISO-8601 start/end within 7 days."
+      - "Email drafts (subject/body) with suggested recipients if obvious; otherwise leave placeholders."
+      - "Notion tasks list: title, due date, tags, and relations."
+      - "HTML weekly roadmap (responsive, advanced CSS) showing meetings, focus blocks, deadlines."
+    approval_prompt: |
+      Review your proposed plan below. 
+      Reply “approve” to create calendar events, add tasks to Notion, and (optionally) send emails.
+      Reply “edit” with any changes.
+  - phase: "Phase 4 — Commit (after approval)"
+    steps:
+      - "For each approved block: call calendar_create_event()."
+      - "If Notion tool exists: call notion_create_task() for each task; else return a ready-made JSON payload for the user to import."
+      - "Ask whether to send each drafted email now. If yes: call email_send(). If not, provide drafts for manual use."
+      - "Call memory_store() to archive the finalized weekly plan context."
+  - phase: "Phase 5 — Safety Net"
+    steps:
+      - "Create a short summary of the week (bullets)."
+      - "Offer to set a Friday 15-minute review block; if accepted, create it."
+      - "Provide a permalink-safe version of the HTML roadmap (data URI or file path guidance)."
+
+email_drafting_rules:
+  tone: "friendly_professional"
+  structure:
+    - "Clear subject with outcome."
+    - "One-paragraph context, one list of actions/requests, one closing line."
+  examples:
+    - subject: "Proposed time for {task/meeting}"
+    - body_template: |
+        Hi {Name},
+
+        Quick note on {topic}. I can {proposed_action} and suggest {time_window}.
+        Please let me know if {alt_window} works better.
+
+        Thanks,
+        {YourName}
+
+scheduling_rules:
+  - "Prefer user’s work hours from context (if available)."
+  - "No more than 2 long focus blocks per day."
+  - "Leave at least 15-minute buffers between events."
+  - "Respect existing meetings and avoid double-booking."
+  - "Keep everything inside the next 7 days."
+
+html_roadmap_spec:
+  description: "Produce a complete HTML document string (<!doctype html>…</html>) with embedded CSS only."
+  requirements:
+    - "Responsive CSS grid: columns = Mon–Sun, rows = time segments."
+    - "Color coding: meetings=--c-meeting, focus=--c-focus, deadlines=--c-deadline, admin=--c-admin."
+    - "Hover tooltips showing title, time, and notes."
+    - "Legend at top; print-friendly styles."
+  css_variables:
+    - "--c-bg: #0b0f14"
+    - "--c-text: #e8eef5"
+    - "--c-muted: #a9b4c0"
+    - "--c-meeting: #ff6b6b"
+    - "--c-focus: #4dd0e1"
+    - "--c-deadline: #ffd166"
+    - "--c-admin: #95a5a6"
+  export_note: "Return this as a code block so the user can save it as week.html and open in a browser."
+
+notion_fallback:
+  description: "If Notion API/tool is not available, output a machine-ready JSON list for import/automation."
+  json_shape: |
+    [
+      {
+        "title": "Task title",
+        "status": "Planned",
+        "tags": ["Focus"],
+        "due_date": "YYYY-MM-DD",
+        "notes": "From TODO: …",
+        "calendar_event_id": "optional",
+        "estimated_minutes": 90
+      }
+    ]
+
+final_output_contract:
+  - "Section A: Weekly Summary (bullets)."
+  - "Section B: Proposed Calendar Blocks (table)."
+  - "Section C: Email Drafts (subject + body)."
+  - "Section D: Notion Tasks (table + JSON)."
+  - "Section E: HTML Roadmap (full document string)."
+  - "Section F: Confirmation prompt (approve / edit)."
+
+system_prompt: |
+  You are now operating in **Weekly Planning Mode**. 
+  1) If the user has not provided a TODO list, ask them to paste it and STOP. Do not call any tools. 
+  2) When a TODO list is provided, parse it, plan only the next 7 days, and propose a schedule with calendar blocks, email drafts, Notion tasks, and an HTML roadmap. 
+  3) Present the full proposal and ask for explicit approval. 
+  4) Only after approval, create calendar events, add Notion tasks (or output JSON), optionally send emails, and store a summary in memory. 
+  5) Be concise, accurate, and avoid overbooking. Respect the user’s timezone and work hours if known.
+
+success_metrics:
+  - "All actionable TODOs mapped to this week or explicitly deferred."
+  - "No double-bookings; buffers preserved."
+  - "Email drafts ready to send; no placeholders left unresolved where info is known."
+  - "Notion tasks created or JSON provided."
+  - "HTML roadmap renders clearly on desktop and mobile."
+  - "User approves the final plan before any commits."
