@@ -72,7 +72,7 @@ Choose your operating system:
 Before you begin, ensure you have:
 
 - **Windows 10 or 11**
-- **Python 3.10 or higher** — [Download from python.org](https://www.python.org/downloads/)
+- **Python 3.10, 3.11, 3.12, or 3.13** — [Download from python.org](https://www.python.org/downloads/)
 - **Claude Desktop** — [Download from Anthropic](https://claude.ai/download)
 - **Google Connectors Configured** — In Claude Desktop, connect your Google account for **Gmail** and **Google Calendar**. This enables read-only access to your emails and calendar events through Claude's native integrations. 
 - <img src="assets/connector_setup.png" width="600"/>
@@ -247,7 +247,9 @@ Then ask Claude to tell you about the available tools.
 Before you begin, ensure you have:
 
 - **macOS 11 (Big Sur) or later**
-- **Python 3.10 or higher** — Check by opening Terminal and typing `python3 --version`. If not installed, [download from python.org](https://www.python.org/downloads/)
+- **Python 3.10, 3.11, 3.12, or 3.13** — [Download from python.org](https://www.python.org/downloads/)
+  - ⚠️ Python 3.14+ is NOT supported (many dependencies don't have compatible builds yet)
+  - Check your version: `python3 --version`
 - **Claude Desktop** — [Download from Anthropic](https://claude.ai/download)
 - **Google Connectors Configured** — In Claude Desktop, connect your Google account for **Gmail** and **Google Calendar**. This enables read-only access to your emails and calendar events through Claude's native integrations. 
 - <img src="assets/connector_setup.png" width="600"/>
